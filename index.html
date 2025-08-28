@@ -1,0 +1,2110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.A.R.S - Sistem Absensi Realtime Siswa</title>
+    <!-- Memuat Tailwind CSS dari CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat Chart.js untuk diagram -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Memuat Litepicker untuk Date Range Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
+    
+    <style>
+        .nav-link.active { background-color: #eff6ff; color: #2563eb; font-weight: 600; }
+        .page-content { display: none; }
+        .page-content.active { display: block; }
+        .status-btn { padding: 6px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; transition: all 0.2s ease; }
+        .status-btn.active { color: white; }
+        .modal-overlay { transition: opacity 0.3s ease; }
+        .modal-container { transition: transform 0.3s ease, opacity 0.3s ease; }
+        .card-hover { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .btn-primary { transition: all 0.2s ease-in-out; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        
+        /* Styling untuk Toast Notification */
+        #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; }
+        .toast { display: flex; align-items: center; padding: 1rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); transform: translateX(120%); opacity: 0; transition: all 0.4s cubic-bezier(0.21, 1.02, 0.73, 1); }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast-success { background-color: #ecfdf5; color: #065f46; }
+        .toast-error { background-color: #fef2f2; color: #991b1b; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans">
+
+    <!-- Container untuk Toast Notification -->
+    <div id="toast-container"></div>
+
+    <!-- UI Login, Registrasi, & Lupa Password -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-slate-800">🚀 S.A.R.S</h1>
+                <p class="text-slate-500">Sistem Absensi Realtime Siswa</p>
+            </div>
+
+            <div class="bg-white p-8 rounded-2xl shadow-lg">
+                <form id="login-form">
+                    <h2 class="text-xl font-bold mb-6 text-center">Login Akun</h2>
+                    <div id="login-error" class="hidden text-center text-sm text-red-600 bg-red-100 p-3 rounded-lg mb-4"></div>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="login-email" class="block text-sm font-medium text-slate-700">Email</label>
+                            <input type="email" id="login-email" required class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="login-password" class="block text-sm font-medium text-slate-700">Password</label>
+                            <input type="password" id="login-password" required class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div class="text-right text-sm">
+                            <a href="#" id="forgot-password-link" class="font-medium text-blue-600 hover:text-blue-500">Lupa Password?</a>
+                        </div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
+                            Login
+                        </button>
+                    </div>
+                     <div class="text-center mt-6">
+                        <a href="#" id="toggle-to-register" class="text-sm text-blue-600 hover:underline">Belum punya akun? Buat akun baru</a>
+                    </div>
+                </form>
+
+                <form id="register-form" class="hidden">
+                    <h2 class="text-xl font-bold mb-6 text-center">Buat Akun Baru</h2>
+                    <div id="register-error" class="hidden text-center text-sm text-red-600 bg-red-100 p-3 rounded-lg mb-4"></div>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="register-email" class="block text-sm font-medium text-slate-700">Email</label>
+                            <input type="email" id="register-email" required class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="register-password" class="block text-sm font-medium text-slate-700">Password</label>
+                            <input type="password" id="register-password" required minlength="6" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
+                            Daftar
+                        </button>
+                    </div>
+                    <div class="text-center mt-6">
+                        <a href="#" id="toggle-to-login-from-register" class="text-sm text-blue-600 hover:underline">Sudah punya akun? Login</a>
+                    </div>
+                </form>
+
+                <form id="reset-password-form" class="hidden">
+                    <h2 class="text-xl font-bold mb-6 text-center">Reset Password</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="reset-email" class="block text-sm font-medium text-slate-700">Email</label>
+                            <input type="email" id="reset-email" required class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
+                            Kirim Email Reset
+                        </button>
+                    </div>
+                     <div class="text-center mt-6">
+                        <a href="#" id="back-to-login" class="text-sm text-blue-600 hover:underline">Kembali ke Login</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-screen" class="fixed inset-0 bg-slate-100 flex-col items-center justify-center z-50 hidden">
+        <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p class="mt-4 text-slate-600">Memuat data...</p>
+    </div>
+
+    <div id="error-screen" class="fixed inset-0 bg-slate-100 flex-col items-center justify-center z-50 hidden">
+        <div class="text-center p-8">
+            <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 class="mt-2 text-lg font-medium text-slate-900">Oops! Terjadi Kesalahan</h3>
+            <p id="error-message" class="mt-1 text-sm text-slate-500">Gagal memuat data. Periksa koneksi internet Anda.</p>
+            <div class="mt-6">
+                <button onclick="window.location.reload()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-primary">
+                    Coba Lagi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-app-content" class="hidden">
+        <div class="relative min-h-screen md:flex">
+            <div class="md:hidden flex justify-between items-center bg-white p-4 shadow-md sticky top-0 z-10">
+                <h2 class="font-bold text-xl text-slate-800">🚀 S.A.R.S</h2>
+                <button id="sidebar-toggle" class="text-slate-800 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+            <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
+            <nav id="sidebar" class="fixed inset-y-0 left-0 bg-white shadow-md p-4 flex-col w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-200 ease-in-out z-30 flex">
+                <div class="mb-4 px-2">
+                    <h2 class="font-bold text-xl text-slate-800">🚀 S.A.R.S</h2>
+                    <p class="text-xs text-slate-500">Sistem Absensi Realtime Siswa</p>
+                    <p class="text-xs text-slate-400 mt-1">Versi 5.3</p>
+                </div>
+                <div class="flex items-center gap-2 mb-8 px-2 border-t border-b py-4">
+                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span id="user-name-display-sidebar" class="text-sm font-medium text-slate-700"></span>
+                </div>
+                <ul class="space-y-2">
+                    <li><a href="#" data-page="dashboard" class="nav-link active flex items-center gap-3 p-3 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg> Dasbor</a></li>
+                    <li><a href="#" data-page="integration" class="nav-link flex items-center gap-3 p-3 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> Integrasi</a></li>
+                    <li><a href="#" data-page="reports" class="nav-link flex items-center gap-3 p-3 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Laporan</a></li>
+                    <li><a href="#" data-page="settings" class="nav-link flex items-center gap-3 p-3 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg> Pengaturan</a></li>
+                </ul>
+                <div class="mt-auto">
+                    <button id="logout-button" class="w-full flex items-center gap-3 p-3 rounded-lg text-slate-600 hover:bg-red-50 hover:text-red-600 font-medium">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        Logout
+                    </button>
+                </div>
+            </nav>
+            <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+                <div id="dashboard-content" class="page-content active"></div>
+                <div id="settings-content" class="page-content"></div>
+                <div id="reports-content" class="page-content"></div>
+                <div id="integration-content" class="page-content"></div>
+                <div id="attendance-content" class="page-content"></div>
+                <footer class="text-center mt-10 non-printable">
+                    <p class="text-sm text-slate-500">Crafted with ❤️ by Om Ger | Ai-Labs</p>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="confirmation-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="modal-container bg-white w-full max-w-md p-6 rounded-2xl shadow-xl transform scale-95">
+            <h2 id="modal-title" class="text-xl font-bold text-slate-800">Konfirmasi Tindakan</h2>
+            <p id="modal-message" class="text-slate-600 mt-2 mb-6">Apakah Anda yakin ingin melanjutkan?</p>
+            <div class="flex justify-end gap-3">
+                <button id="modal-cancel-btn" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-semibold hover:bg-slate-300">Batal</button>
+                <button id="modal-confirm-btn" class="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 btn-primary">Hapus</button>
+            </div>
+        </div>
+    </div>
+    <div id="edit-student-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="modal-container bg-white w-full max-w-md p-6 rounded-2xl shadow-xl transform scale-95">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>Edit Data Siswa</h2>
+            <form id="edit-student-form" class="space-y-4">
+                <input type="hidden" id="edit-student-id"><input type="hidden" id="edit-student-class-id">
+                <div><label for="edit-student-nis" class="block text-sm font-medium">NIS</label><input type="text" id="edit-student-nis" required class="w-full p-2 border rounded-lg mt-1"></div>
+                <div><label for="edit-student-name" class="block text-sm font-medium">Nama Lengkap Siswa</label><input type="text" id="edit-student-name" required class="w-full p-2 border rounded-lg mt-1"></div>
+                <div><label for="edit-student-gender" class="block text-sm font-medium">Jenis Kelamin</label><select id="edit-student-gender" required class="w-full p-2 border rounded-lg mt-1"><option value="Laki-laki">Laki-laki</option><option value="Perempuan">Perempuan</option></select></div>
+                <div class="flex justify-end gap-3 pt-4"><button type="button" id="edit-student-cancel-btn" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-semibold hover:bg-slate-300">Batal</button><button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 btn-primary">Simpan Perubahan</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="transfer-student-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="modal-container bg-white w-full max-w-md p-6 rounded-2xl shadow-xl transform scale-95">
+            <h2 class="text-xl font-bold text-slate-800 mb-2 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>Pindahkan Siswa</h2>
+            <p class="text-sm text-slate-600 mb-4">Pindahkan <strong id="transfer-student-name"></strong> ke kelas lain.</p>
+            <form id="transfer-student-form" class="space-y-4">
+                <input type="hidden" id="transfer-student-id"><input type="hidden" id="transfer-student-source-class-id">
+                <div><label for="transfer-destination-class" class="block text-sm font-medium">Pindahkan Ke Kelas:</label><select id="transfer-destination-class" required class="w-full p-2 border rounded-lg mt-1"></select></div>
+                <div class="flex justify-end gap-3 pt-4"><button type="button" id="transfer-student-cancel-btn" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-semibold hover:bg-slate-300">Batal</button><button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 btn-primary">Pindahkan</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="edit-class-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="modal-container bg-white w-full max-w-md p-6 rounded-2xl shadow-xl transform scale-95">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>Edit Nama Kelas</h2>
+            <form id="edit-class-form" class="space-y-4">
+                <input type="hidden" id="edit-class-id">
+                <div>
+                    <label for="edit-class-name" class="block text-sm font-medium">Nama Kelas</label>
+                    <input type="text" id="edit-class-name" required class="w-full p-2 border rounded-lg mt-1">
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" id="edit-class-cancel-btn" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-semibold hover:bg-slate-300">Batal</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="student-report-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="modal-container bg-white w-full max-w-2xl p-6 rounded-2xl shadow-xl transform scale-95">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800 mb-2">Laporan Individual Siswa</h2>
+                    <p id="student-report-info" class="text-sm text-slate-500 mb-4"></p>
+                </div>
+                <button id="student-report-close-btn" class="text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <div id="student-report-content" class="max-h-96 overflow-y-auto"></div>
+        </div>
+    </div>
+    <div id="reset-data-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="modal-container bg-white w-full max-w-md p-6 rounded-2xl shadow-xl transform scale-95">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>Konfirmasi Akhir</h2>
+            <p class="text-sm text-slate-600 mb-4">Ini adalah langkah terakhir. Untuk melanjutkan, masukkan password Anda.</p>
+            <form id="reset-data-form" class="space-y-4">
+                <div>
+                    <label for="reset-password-confirm" class="block text-sm font-medium">Password</label>
+                    <input type="password" id="reset-password-confirm" required class="w-full p-2 border rounded-lg mt-1">
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" id="reset-data-cancel-btn" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-semibold hover:bg-slate-300">Batal</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 btn-primary">Reset Data Sekarang</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PERUBAHAN: Memuat konfigurasi dari file eksternal -->
+    <script src="./firebase-config.js"></script>
+
+    <script type="module">
+        // --- FIREBASE INITIALIZATION ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // PERUBAHAN: Objek firebaseConfig dihapus dari sini
+        // Sekarang, variabel 'firebaseConfig' akan tersedia secara global dari file 'firebase-config.js'
+        
+        // Cek jika konfigurasi Firebase ada, jika tidak, tampilkan error
+        if (typeof firebaseConfig === 'undefined') {
+            document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center text-center p-4"><div><h1 class="text-2xl font-bold text-red-600">Error Konfigurasi</h1><p class="text-slate-600 mt-2">Konfigurasi Firebase tidak ditemukan. Pastikan aplikasi ini di-deploy dengan benar.</p></div></div>';
+            throw new Error("Firebase config is not defined. Please set up your environment variables.");
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- SISA KODE JAVASCRIPT SAMA SEPERTI SEBELUMNYA ---
+        // (Tidak ada perubahan dari sini ke bawah)
+        
+        let state = {};
+        let currentUserId = null;
+        const authScreen = document.getElementById('auth-screen');
+        const loadingScreen = document.getElementById('loading-screen');
+        const errorScreen = document.getElementById('error-screen');
+        const mainAppContent = document.getElementById('main-app-content');
+        
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const resetPasswordForm = document.getElementById('reset-password-form');
+        const loginError = document.getElementById('login-error');
+        const registerError = document.getElementById('register-error');
+        
+        function showAuthForm(formToShow) {
+            loginForm.classList.add('hidden');
+            registerForm.classList.add('hidden');
+            resetPasswordForm.classList.add('hidden');
+            formToShow.classList.remove('hidden');
+        }
+
+        document.getElementById('toggle-to-register').addEventListener('click', (e) => { e.preventDefault(); showAuthForm(registerForm); });
+        document.getElementById('toggle-to-login-from-register').addEventListener('click', (e) => { e.preventDefault(); showAuthForm(loginForm); });
+        document.getElementById('forgot-password-link').addEventListener('click', (e) => { e.preventDefault(); showAuthForm(resetPasswordForm); });
+        document.getElementById('back-to-login').addEventListener('click', (e) => { e.preventDefault(); showAuthForm(loginForm); });
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const button = registerForm.querySelector('button');
+            const originalText = button.textContent;
+            setButtonLoading(button, true);
+            registerError.classList.add('hidden');
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                const defaultUserData = {
+                    schoolInfo: { name: 'Sekolah Baru', address: 'Alamat Sekolah', logo: '' },
+                    classes: [], students: {}, attendanceRecords: {}, holidays: [],
+                    integrations: { googleSheetUrl: '' }
+                };
+                await setDoc(doc(db, "users", user.uid), defaultUserData);
+            } catch (error) {
+                let userMessage = 'Gagal membuat akun. Silakan coba lagi.';
+                if (error.code === 'auth/email-already-in-use') {
+                    userMessage = 'Email ini sudah terdaftar. Silakan gunakan email lain atau login.';
+                } else if (error.code === 'auth/weak-password') {
+                    userMessage = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
+                } else if (error.code === 'auth/invalid-email') {
+                    userMessage = 'Format email yang Anda masukkan tidak valid.';
+                }
+                registerError.textContent = userMessage;
+                registerError.classList.remove('hidden');
+            } finally {
+                setButtonLoading(button, false, originalText);
+            }
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const button = loginForm.querySelector('button');
+            const originalText = button.textContent;
+            setButtonLoading(button, true);
+            loginError.classList.add('hidden');
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                let userMessage = 'Terjadi kesalahan. Silakan coba lagi nanti.';
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    userMessage = 'Email atau password yang Anda masukkan salah.';
+                } else if (error.code === 'auth/too-many-requests') {
+                    userMessage = 'Terlalu banyak percobaan gagal. Akun Anda ditangguhkan sementara. Coba lagi nanti.';
+                }
+                loginError.textContent = userMessage;
+                loginError.classList.remove('hidden');
+            } finally {
+                setButtonLoading(button, false, originalText);
+            }
+        });
+
+        resetPasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            const button = resetPasswordForm.querySelector('button');
+            const originalText = button.innerHTML;
+            setButtonLoading(button, true);
+
+            try {
+                await sendPasswordResetEmail(auth, email);
+                showToast('Email reset password telah dikirim!');
+                showAuthForm(loginForm);
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+            } finally {
+                setButtonLoading(button, false, originalText);
+            }
+        });
+
+        async function saveStateToFirestore() {
+            if (!currentUserId) {
+                console.error("Tidak dapat menyimpan: User ID tidak ditemukan.");
+                return;
+            }
+            try {
+                const userDocRef = doc(db, "users", currentUserId);
+                await setDoc(userDocRef, state, { merge: true });
+                console.log("State berhasil disimpan ke Firestore.");
+            } catch (error) {
+                console.error("Error saat menyimpan state ke Firestore:", error);
+                showToast('Gagal menyimpan data ke server.', 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const toastClass = type === 'success' ? 'toast-success' : 'toast-error';
+            const icon = type === 'success' 
+                ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+                : `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+
+            toast.className = `toast ${toastClass}`;
+            toast.innerHTML = `<div class="mr-3">${icon}</div><p class="font-semibold">${message}</p>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (container.contains(toast)) {
+                        container.removeChild(toast);
+                    }
+                }, 400);
+            }, 3000);
+        }
+
+        let dashboardChartInstance = null;
+        let classChartInstance = null;
+        let reportChartInstance = null;
+        let trendChartInstance = null;
+        let reportDatePicker = null;
+        let holidayDatePicker = null;
+
+        const statusButtons = {
+            Hadir: { bg: 'bg-green-200', text: 'text-green-800', activeBg: 'bg-green-600', indicator: 'bg-green-500' },
+            Sakit: { bg: 'bg-slate-200', text: 'text-slate-800', activeBg: 'bg-slate-600', indicator: 'bg-slate-500' },
+            Izin: { bg: 'bg-blue-100', text: 'text-blue-700', activeBg: 'bg-blue-500', indicator: 'bg-blue-500' },
+            Alfa: { bg: 'bg-red-100', text: 'text-red-700', activeBg: 'bg-red-500', indicator: 'bg-red-500' }
+        };
+
+        const setButtonLoading = (button, isLoading, originalText = '') => {
+            if (!button) return;
+            if (isLoading) {
+                button.disabled = true;
+                button.innerHTML = `<svg class="animate-spin h-5 w-5 mx-auto text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            } else {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        };
+
+        function showModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if(modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modal.querySelector('.modal-container').classList.remove('scale-95');
+                }, 10);
+            }
+        }
+
+        function hideModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if(modal) {
+                modal.classList.add('opacity-0');
+                modal.querySelector('.modal-container').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+
+        function showConfirmationModal(title, message, onConfirm) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            showModal('confirmation-modal');
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+            
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+            const newCancelBtn = cancelBtn.cloneNode(true);
+            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+            const confirmHandler = () => {
+                onConfirm();
+                hideModal('confirmation-modal');
+            };
+
+            newConfirmBtn.addEventListener('click', confirmHandler, { once: true });
+            newCancelBtn.addEventListener('click', () => hideModal('confirmation-modal'), { once: true });
+        }
+        
+        function exportAllData() {
+            try {
+                const dataStr = JSON.stringify(state, null, 2);
+                const dataBlob = new Blob([dataStr], {type: "application/json"});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                const today = new Date().toISOString().slice(0, 10);
+                link.href = url;
+                link.download = `sars-backup-${today}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                showToast('Semua data berhasil diekspor!');
+            } catch (error) {
+                console.error("Gagal mengekspor data:", error);
+                showToast('Gagal mengekspor data.', 'error');
+            }
+        }
+
+        function importAllData(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const importedState = JSON.parse(event.target.result);
+                    showConfirmationModal(
+                        'Impor Data?',
+                        'Ini akan menimpa semua data yang ada saat ini. Apakah Anda yakin?',
+                        async () => {
+                            state = importedState;
+                            await saveStateToFirestore();
+                            showToast('Data berhasil diimpor! Halaman akan dimuat ulang.');
+                            setTimeout(() => window.location.reload(), 1500);
+                        }
+                    );
+                } catch (error) {
+                    showToast('File JSON tidak valid atau rusak.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function renderHolidaysList() {
+            const holidaysListDiv = document.getElementById('holidays-list');
+            if (!holidaysListDiv) return;
+            state.holidays = state.holidays || [];
+            if (state.holidays.length === 0) {
+                holidaysListDiv.innerHTML = `<p class="text-center text-sm text-slate-500 p-4">Belum ada hari libur yang ditambahkan.</p>`;
+                return;
+            }
+            holidaysListDiv.innerHTML = '';
+            state.holidays.forEach(date => {
+                const holidayEl = document.createElement('div');
+                holidayEl.className = 'p-2 border rounded-lg flex justify-between items-center';
+                const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                holidayEl.innerHTML = `
+                    <span>${formattedDate}</span>
+                    <button data-date="${date}" class="delete-holiday-btn text-red-500 text-xs font-semibold p-1 hover:bg-red-50 rounded">HAPUS</button>
+                `;
+                holidaysListDiv.appendChild(holidayEl);
+            });
+        }
+
+        function showIndividualStudentReport(studentId, startDate, endDate) {
+            const student = Object.values(state.students).flat().find(s => s.id === studentId);
+            if (!student) return;
+
+            const reportInfo = document.getElementById('student-report-info');
+            const reportContent = document.getElementById('student-report-content');
+            
+            reportInfo.textContent = `Siswa: ${student.name} | NIS: ${student.nis} | Periode: ${startDate.toLocaleDateString('id-ID')} - ${endDate.toLocaleDateString('id-ID')}`;
+            
+            let contentHTML = '<ul class="divide-y divide-slate-200">';
+            let recordsFound = 0;
+
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().slice(0, 10);
+                if (state.attendanceRecords[dateStr]) {
+                    Object.values(state.attendanceRecords[dateStr]).forEach(classRecord => {
+                        const studentRecord = classRecord.records.find(r => r.studentId === studentId);
+                        if (studentRecord) {
+                            recordsFound++;
+                            const statusInfo = statusButtons[studentRecord.status];
+                            contentHTML += `
+                                <li class="py-3">
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-semibold">${d.toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'short'})}</span>
+                                        <span class="status-btn text-xs ${statusInfo.bg} ${statusInfo.text} ${studentRecord.status === 'Hadir' ? 'px-4' : ''}">${studentRecord.status}</span>
+                                    </div>
+                                    ${studentRecord.description ? `<p class="text-sm text-slate-500 mt-1 pl-2 border-l-2 ml-1">${studentRecord.description}</p>` : ''}
+                                </li>`;
+                        }
+                    });
+                }
+            }
+            
+            if (recordsFound === 0) {
+                contentHTML = '<p class="text-center text-slate-500 py-4">Tidak ada catatan absensi untuk siswa ini pada periode yang dipilih.</p>';
+            } else {
+                contentHTML += '</ul>';
+            }
+
+            reportContent.innerHTML = contentHTML;
+            showModal('student-report-modal');
+        }
+
+        function renderPage(pageName) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+            const pageElement = document.getElementById(`${pageName}-content`);
+            if (pageElement) pageElement.classList.add('active');
+            if (classChartInstance) { classChartInstance.destroy(); classChartInstance = null; }
+            if (reportDatePicker) { reportDatePicker.destroy(); reportDatePicker = null; }
+            if (holidayDatePicker) { holidayDatePicker.destroy(); holidayDatePicker = null; }
+            if (reportChartInstance) { reportChartInstance.destroy(); reportChartInstance = null; }
+            if (trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
+        }
+        
+        function renderDashboard() {
+            const dashboardContent = document.getElementById('dashboard-content');
+            const { name, address, logo } = state.schoolInfo;
+            dashboardContent.innerHTML = `
+                <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div class="flex items-center gap-4">
+                        <img src="${logo || 'https://placehold.co/64x64/e2e8f0/475569?text=Logo'}" onerror="this.onerror=null;this.src='https://placehold.co/64x64/e2e8f0/475569?text=Error';" class="w-12 h-12 md:w-16 md:h-16 rounded-md object-cover bg-slate-200" alt="Logo Sekolah">
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">${name}</h1>
+                            <p class="mt-1 text-sm text-slate-500">${address}</p>
+                        </div>
+                    </div>
+                    <div class="text-left sm:text-right w-full sm:w-auto">
+                        <p id="live-datetime" class="text-sm text-slate-500"></p>
+                    </div>
+                </header>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="md:col-span-1 bg-white p-6 rounded-xl shadow flex flex-col">
+                        <h3 class="font-bold text-lg mb-4">Kehadiran Hari Ini (Semua Kelas)</h3>
+                        <div class="relative h-48 w-48 mx-auto mb-4">
+                            <canvas id="attendance-chart"></canvas>
+                            <div id="dashboard-chart-percentage" class="absolute inset-0 flex items-center justify-center text-3xl font-bold text-slate-700"></div>
+                        </div>
+                        <div id="dashboard-stats-list" class="grid grid-cols-2 gap-3 text-center"></div>
+                    </div>
+                    <div class="md:col-span-2 bg-white p-6 rounded-xl shadow">
+                        <h3 class="font-bold text-lg mb-4">Pilih Kelas untuk Absensi</h3>
+                        <div id="class-list-dashboard" class="space-y-4"></div>
+                    </div>
+                </div>
+            `;
+            renderDashboardClasses();
+            renderDonutChart();
+            const liveTimeEl = document.getElementById('live-datetime');
+            if (liveTimeEl) {
+                 liveTimeEl.textContent = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'medium' });
+                 setInterval(() => { liveTimeEl.textContent = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'medium' }); }, 1000);
+            }
+        }
+
+        function renderSettings() {
+            const settingsContent = document.getElementById('settings-content');
+            settingsContent.innerHTML = `
+                <h1 class="text-3xl font-bold text-slate-900 mb-6">Pengaturan</h1>
+                <div class="space-y-8">
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-xl font-bold mb-4">Informasi Sekolah</h2>
+                        <form id="school-info-form" class="space-y-4">
+                            <div>
+                                <label for="school-name-input" class="block text-sm font-medium">Nama Sekolah</label>
+                                <input type="text" id="school-name-input" value="${state.schoolInfo.name}" class="w-full p-2 border rounded-lg mt-1">
+                            </div>
+                            <div>
+                                <label for="school-address-input" class="block text-sm font-medium">Alamat Sekolah</label>
+                                <input type="text" id="school-address-input" value="${state.schoolInfo.address}" class="w-full p-2 border rounded-lg mt-1">
+                            </div>
+                            <div>
+                                <label for="school-logo-input" class="block text-sm font-medium">URL Logo Sekolah</label>
+                                <input type="url" id="school-logo-input" value="${state.schoolInfo.logo}" placeholder="https://example.com/logo.png" class="w-full p-2 border rounded-lg mt-1">
+                            </div>
+                            <div class="flex justify-end items-center gap-4">
+                                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 btn-primary flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" /></svg>
+                                    Simpan Informasi
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-xl shadow-lg">
+                            <h2 class="text-xl font-bold mb-4">Kelola Kelas</h2>
+                            <form id="add-class-form" class="flex gap-2 mb-4">
+                                <input type="text" id="new-class-name" placeholder="Nama Kelas Baru" required class="flex-1 p-2 border rounded-lg">
+                                <button type="submit" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 btn-primary flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                                </button>
+                            </form>
+                            <div id="classes-list-settings" class="space-y-2"></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg">
+                            <h2 class="text-xl font-bold mb-4">Kelola Siswa</h2>
+                            <div class="mb-4">
+                                <label for="class-select-for-students" class="block text-sm font-medium">Pilih Kelas:</label>
+                                <select id="class-select-for-students" class="w-full p-2 border rounded-lg mt-1"></select>
+                            </div>
+                            <div id="students-management-area" class="hidden">
+                                 <div class="flex flex-wrap gap-2 mb-4 border-b pb-4">
+                                     <input type="file" id="csv-file-input" class="hidden" accept=".csv">
+                                     <button type="button" id="import-csv-btn" class="flex-1 text-sm bg-sky-100 text-sky-700 font-semibold py-2 px-4 rounded-lg hover:bg-sky-200 btn-primary flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>Impor (CSV)</button>
+                                     <button type="button" id="export-csv-btn" class="flex-1 text-sm bg-emerald-100 text-emerald-700 font-semibold py-2 px-4 rounded-lg hover:bg-emerald-200 btn-primary flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Ekspor (CSV)</button>
+                                 </div>
+                                <div class="mb-4">
+                                    <input type="search" id="student-search-settings" placeholder="Cari nama siswa..." class="w-full p-2 border rounded-lg">
+                                </div>
+                                <form id="add-student-form" class="space-y-4 border-t pt-4">
+                                    <h3 class="font-semibold">Tambah Siswa Baru</h3>
+                                    <div>
+                                        <label for="student-nis" class="text-sm font-medium">NIS</label>
+                                        <input type="text" id="student-nis" required class="w-full p-2 border rounded-lg mt-1">
+                                    </div>
+                                    <div>
+                                        <label for="student-name" class="text-sm font-medium">Nama Lengkap</label>
+                                        <input type="text" id="student-name" required class="w-full p-2 border rounded-lg mt-1">
+                                    </div>
+                                    <div>
+                                        <label for="student-gender" class="text-sm font-medium">Jenis Kelamin</label>
+                                        <select id="student-gender" required class="w-full p-2 border rounded-lg mt-1">
+                                            <option value="Laki-laki">Laki-laki</option>
+                                            <option value="Perempuan">Perempuan</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 rounded-lg hover:bg-green-700 btn-primary flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1v-1z" /></svg>
+                                        Tambahkan Siswa
+                                    </button>
+                                </form>
+                                <div id="students-list-settings" class="mt-6">
+                                    <h3 class="font-semibold mb-2">Daftar Siswa</h3>
+                                    <div id="student-list-display" class="space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-xl font-bold mb-4">Kelola Hari Libur</h2>
+                        <form id="add-holiday-form" class="flex gap-2 mb-4">
+                            <input type="text" id="holiday-date-picker" placeholder="Pilih tanggal libur" required class="flex-1 p-2 border rounded-lg">
+                            <button type="submit" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 btn-primary flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </form>
+                        <div id="holidays-list" class="space-y-2"></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-xl font-bold mb-4">Manajemen Data</h2>
+                        <div class="flex flex-col gap-4">
+                             <input type="file" id="import-data-input" class="hidden" accept=".json">
+                             <button id="export-data-btn" class="w-full text-sm bg-blue-100 text-blue-700 font-semibold py-3 px-4 rounded-lg hover:bg-blue-200 btn-primary flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                Ekspor Semua Data (JSON)
+                            </button>
+                             <button id="import-data-btn" class="w-full text-sm bg-orange-100 text-orange-700 font-semibold py-3 px-4 rounded-lg hover:bg-orange-200 btn-primary flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                Impor Data (JSON)
+                            </button>
+                            <button id="reset-data-btn" class="w-full text-sm bg-red-100 text-red-700 font-semibold py-3 px-4 rounded-lg hover:bg-red-200 btn-primary flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                Reset Semua Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            if (document.getElementById('holiday-date-picker') && !holidayDatePicker) {
+                holidayDatePicker = new Litepicker({
+                    element: document.getElementById('holiday-date-picker'),
+                    singleMode: true,
+                    format: 'D MMMM YYYY',
+                    lang: 'id-ID'
+                });
+            }
+            attachSettingsListeners();
+            renderAllSettings();
+        }
+
+        function renderReports() {
+            const reportsContent = document.getElementById('reports-content');
+            reportsContent.innerHTML = `
+                <div class="printable-area">
+                    <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>Laporan Absensi</h1>
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-lg h-fit non-printable">
+                            <h2 class="text-xl font-bold mb-4">Filter Laporan</h2>
+                            <form id="report-filter-form">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                    <div>
+                                        <label for="report-class-select" class="block text-sm font-medium">Pilih Kelas</label>
+                                        <select id="report-class-select" class="w-full p-2 border rounded-lg mt-1"></select>
+                                    </div>
+                                    <div>
+                                        <label for="period-select" class="block text-sm font-medium">Periode Cepat</label>
+                                        <select id="period-select" class="w-full p-2 border rounded-lg mt-1">
+                                            <option value="">-- Pilih Periode --</option>
+                                            <option value="today">Hari Ini</option>
+                                            <option value="yesterday">Kemarin</option>
+                                            <option value="last7days">7 Hari Terakhir</option>
+                                            <option value="last14days">14 Hari Terakhir</option>
+                                            <option value="thisMonth">Bulan Ini</option>
+                                            <option value="lastMonth">Bulan Lalu</option>
+                                            <option value="thisYear">Tahun Ini</option>
+                                            <option value="lastYear">Tahun Lalu</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="report-date-range" class="block text-sm font-medium">Atau Pilih Rentang</label>
+                                        <input type="text" id="report-date-range" required class="w-full p-2 border rounded-lg mt-1" placeholder="Pilih tanggal...">
+                                    </div>
+                                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 btn-primary">Terapkan Filter</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div id="report-results-area" class="hidden">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+                                     <h2 class="text-xl font-bold mb-4 text-center">Statistik Ringkas</h2>
+                                     <div id="report-stats-container">
+                                         <div class="relative h-48 w-48 mx-auto mb-4">
+                                             <canvas id="report-chart"></canvas>
+                                             <div id="report-chart-percentage" class="absolute inset-0 flex items-center justify-center text-3xl font-bold text-slate-700"></div>
+                                         </div>
+                                         <div id="report-stats-list" class="grid grid-cols-2 gap-3 text-center"></div>
+                                     </div>
+                                </div>
+                                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <div>
+                                            <h2 class="text-xl font-bold">Rekap Absensi</h2>
+                                            <p id="report-info" class="text-sm text-slate-500 mt-1"></p>
+                                        </div>
+                                        <div class="non-printable flex gap-2">
+                                            <button id="export-report-btn" class="flex items-center gap-2 text-sm bg-green-100 text-green-700 font-semibold py-2 px-4 rounded-lg hover:bg-green-200 btn-primary">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                                Ekspor Data
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="report-table-container" class="overflow-x-auto"></div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-xl shadow-lg mt-6">
+                                <h2 class="text-xl font-bold mb-4">Analisis Tren Kehadiran</h2>
+                                <canvas id="trend-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const classSelect = reportsContent.querySelector('#report-class-select');
+            classSelect.innerHTML = '<option value="semua">Semua Kelas</option>';
+            state.classes.forEach(cls => {
+                classSelect.innerHTML += `<option value="${cls.id}">${cls.name}</option>`;
+            });
+
+            reportDatePicker = new Litepicker({
+                element: document.getElementById('report-date-range'),
+                singleMode: false, format: 'D MMMM YYYY', lang: 'id-ID',
+                setup: (picker) => { picker.on('selected', () => { document.getElementById('period-select').value = ""; }); }
+            });
+
+            document.getElementById('period-select').addEventListener('change', (e) => {
+                const period = e.target.value; if (!period) return;
+                const today = new Date(); let startDate, endDate;
+                switch (period) {
+                    case 'today': startDate = today; endDate = today; break;
+                    case 'yesterday': startDate = new Date(); startDate.setDate(today.getDate() - 1); endDate = startDate; break;
+                    case 'last7days': endDate = today; startDate = new Date(); startDate.setDate(today.getDate() - 6); break;
+                    case 'last14days': endDate = today; startDate = new Date(); startDate.setDate(today.getDate() - 13); break;
+                    case 'thisMonth': endDate = today; startDate = new Date(today.getFullYear(), today.getMonth(), 1); break;
+                    case 'lastMonth': startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1); endDate = new Date(today.getFullYear(), today.getMonth(), 0); break;
+                    case 'thisYear': endDate = today; startDate = new Date(today.getFullYear(), 0, 1); break;
+                    case 'lastYear': startDate = new Date(today.getFullYear() - 1, 0, 1); endDate = new Date(today.getFullYear() - 1, 11, 31); break;
+                }
+                reportDatePicker.setDateRange(startDate, endDate);
+            });
+
+            reportsContent.addEventListener('submit', (e) => {
+                if(e.target.id === 'report-filter-form') {
+                    e.preventDefault();
+                    const button = e.target.querySelector('button[type="submit"]');
+                    const originalText = button.innerHTML;
+                    setButtonLoading(button, true);
+
+                    setTimeout(() => {
+                        const classId = document.getElementById('report-class-select').value;
+                        const startDate = reportDatePicker.getStartDate() ? reportDatePicker.getStartDate().toJSDate() : null;
+                        const endDate = reportDatePicker.getEndDate() ? reportDatePicker.getEndDate().toJSDate() : null;
+                        
+                        if (!startDate || !endDate) {
+                            showToast('Silakan pilih rentang tanggal terlebih dahulu.', 'error');
+                            setButtonLoading(button, false, originalText);
+                            return;
+                        }
+
+                        generateReport(classId, startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10));
+                        setButtonLoading(button, false, originalText);
+                    }, 500);
+                }
+            });
+
+            reportsContent.addEventListener('click', (e) => {
+                const target = e.target;
+                if(target.closest('#export-report-btn')) {
+                    const dataToExport = [];
+                    const rows = document.querySelectorAll('#report-table-container tbody tr');
+                    
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll('td, th');
+                        dataToExport.push({
+                            nis: cells[0].textContent,
+                            nama: cells[1].textContent,
+                            gender: cells[2].textContent,
+                            hadir: cells[3].textContent,
+                            sakit: cells[4].textContent,
+                            izin: cells[5].textContent,
+                            alfa: cells[6].textContent,
+                            keterangan: cells[7].innerHTML.replace(/<br\s*[\/]?>/gi, '; ')
+                        });
+                    });
+
+                    if(dataToExport.length > 0) {
+                        exportReportToSheet(dataToExport);
+                    } else {
+                        showToast('Tidak ada data untuk diekspor.', 'error');
+                    }
+                }
+                
+                const studentRow = target.closest('.student-report-link');
+                if (studentRow) {
+                    e.preventDefault();
+                    const studentId = studentRow.dataset.studentId;
+                    const startDate = reportDatePicker.getStartDate() ? reportDatePicker.getStartDate().toJSDate() : null;
+                    const endDate = reportDatePicker.getEndDate() ? reportDatePicker.getEndDate().toJSDate() : null;
+                    if (studentId && startDate && endDate) {
+                        showIndividualStudentReport(studentId, startDate, endDate);
+                    }
+                }
+            });
+        }
+
+        function renderIntegration() {
+            const integrationContent = document.getElementById('integration-content');
+            const currentUrl = state.integrations ? state.integrations.googleSheetUrl : '';
+            integrationContent.innerHTML = `
+                <h1 class="text-3xl font-bold text-slate-900 mb-6">Integrasi</h1>
+                <div class="bg-white p-6 rounded-xl shadow-lg max-w-2xl mx-auto">
+                    <h2 class="text-xl font-bold mb-2">Integrasi Google Sheets</h2>
+                    <p class="text-sm text-slate-600 mb-4">
+                        Masukkan URL Web App dari Google Apps Script untuk mengaktifkan fitur "Ekspor Data" ke Google Sheets.
+                    </p>
+                    <form id="integration-form" class="space-y-4">
+                        <div>
+                            <label for="google-sheet-url-input" class="block text-sm font-medium">URL Web App</label>
+                            <input type="url" id="google-sheet-url-input" value="${currentUrl}" placeholder="https://script.google.com/macros/s/..." required class="w-full p-2 border rounded-lg mt-1">
+                        </div>
+                        <div class="flex justify-end items-center gap-4">
+                            <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 btn-primary flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" /></svg>
+                                Simpan URL
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            attachIntegrationListeners();
+        }
+
+        function renderAttendanceLayout(classId) {
+            const cls = state.classes.find(c => c.id === classId);
+            if (!cls) return;
+
+            const attendanceContent = document.getElementById('attendance-content');
+            const today = new Date().toISOString().slice(0,10);
+            const todayRecord = state.attendanceRecords[today] && state.attendanceRecords[today][classId];
+            const isRecapped = todayRecord && todayRecord.recapped;
+            const dailyNote = todayRecord ? todayRecord.notes || '' : '';
+
+            attendanceContent.innerHTML = `
+                <header class="flex items-center gap-4 mb-8">
+                    <button id="back-to-dashboard" class="p-2 rounded-lg hover:bg-slate-200">&larr; Kembali</button>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Absensi ${cls.name}</h1>
+                        <div class="mt-2 flex items-center">
+                            <input type="date" value="${today}" class="p-1 border rounded-md">
+                            <span id="attendance-status-indicator" class="ml-4 text-xs font-semibold px-2 py-1 rounded-full ${isRecapped ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}">${isRecapped ? 'Sudah Direkap' : 'Belum Direkap'}</span>
+                        </div>
+                    </div>
+                </header>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg h-fit">
+                        <h3 class="font-bold text-lg mb-4 text-center">Statistik Kehadiran</h3>
+                        <div class="relative h-40 w-40 mx-auto flex items-center justify-center">
+                            <canvas id="class-attendance-chart"></canvas>
+                            <div id="class-chart-percentage" class="absolute text-3xl font-bold text-slate-700"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mt-4">
+                            <div id="hadir-box" class="p-3 rounded-lg bg-green-600 text-white"><p class="font-bold text-2xl">0</p><p class="text-sm">Hadir</p></div>
+                            <div id="sakit-box" class="p-3 rounded-lg bg-slate-600 text-white"><p class="font-bold text-2xl">0</p><p class="text-sm">Sakit</p></div>
+                            <div id="izin-box" class="p-3 rounded-lg bg-blue-500 text-white"><p class="font-bold text-2xl">0</p><p class="text-sm">Izin</p></div>
+                            <div id="alfa-box" class="p-3 rounded-lg bg-red-500 text-white"><p class="font-bold text-2xl">0</p><p class="text-sm">Alfa</p></div>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
+                       <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg">Daftar Siswa</h3>
+                            <input type="search" id="student-search-attendance" placeholder="Cari nama..." class="p-2 border rounded-lg text-sm">
+                       </div>
+                        <div id="student-attendance-list" class="space-y-4"></div>
+                        
+                        <div class="mt-6 pt-6 border-t">
+                            <label for="class-notes-textarea" class="block text-sm font-medium text-slate-700 mb-2">Catatan Kejadian Hari Ini</label>
+                            <textarea id="class-notes-textarea" rows="3" class="w-full p-2 border rounded-lg text-sm" placeholder="Contoh: Kunjungan dari dinas pendidikan, listrik padam, dll.">${dailyNote}</textarea>
+                        </div>
+
+                        <div class="mt-6">
+                            <button id="save-attendance-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 btn-primary">Simpan Absensi & Catatan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const studentList = state.students[classId] || [];
+            const studentListContainer = attendanceContent.querySelector('#student-attendance-list');
+            studentListContainer.innerHTML = studentList.length > 0 ? '' : '<p class="text-slate-500">Belum ada siswa di kelas ini. Tambahkan siswa di halaman Pengaturan.</p>';
+
+            const recordsToday = (state.attendanceRecords[today] && state.attendanceRecords[today][classId]) ? state.attendanceRecords[today][classId].records : [];
+
+            studentList.forEach(student => {
+                const studentRow = document.createElement('div');
+                studentRow.className = 'student-row flex flex-col md:flex-row md:items-start justify-between p-3 border-b';
+                studentRow.dataset.studentName = student.name.toLowerCase();
+                
+                const existingRecord = recordsToday.find(r => r.studentId === student.id);
+                const currentStatus = existingRecord ? existingRecord.status : 'Hadir';
+                const existingDescription = existingRecord ? existingRecord.description : '';
+                
+                const statusColors = { Hadir: 'text-green-600', Sakit: 'text-slate-600', Izin: 'text-blue-600', Alfa: 'text-red-600' };
+
+                let buttonsHTML = '';
+                for (const [status, classes] of Object.entries(statusButtons)) {
+                    const isActive = status === currentStatus;
+                    buttonsHTML += `<button class="status-btn ${isActive ? classes.activeBg + ' active' : classes.bg + ' ' + classes.text}" data-status="${status}">${status}</button>`;
+                }
+
+                studentRow.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="status-indicator w-3 h-3 rounded-full ${statusButtons[currentStatus].indicator} flex-shrink-0"></div>
+                            <div>
+                                <p>${student.name} <span class="text-xs text-slate-500">(${student.gender.charAt(0)}) ${student.nis}</span></p>
+                                <p class="student-status-text text-xs font-semibold mt-1 ${statusColors[currentStatus]}">${currentStatus}</p>
+                            </div>
+                        </div>
+                        <div class="description-wrapper mt-2 pl-6 ${currentStatus === 'Sakit' || currentStatus === 'Izin' ? '' : 'hidden'}">
+                            <input type="text" class="description-input w-full text-xs p-1 border rounded" placeholder="Tambah keterangan (cth: demam)..." value="${existingDescription || ''}">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 status-buttons self-end md:self-center mt-2 md:mt-0" data-student-id="${student.id}">
+                        ${buttonsHTML}
+                    </div>
+                `;
+                studentListContainer.appendChild(studentRow);
+            });
+
+            renderClassAttendanceChart();
+
+            attendanceContent.querySelector('#back-to-dashboard').addEventListener('click', () => {
+                renderDashboard();
+                renderPage('dashboard');
+            });
+
+            attendanceContent.querySelector('#student-search-attendance').addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                attendanceContent.querySelectorAll('.student-row').forEach(row => {
+                    const studentName = row.dataset.studentName;
+                    if (studentName.includes(searchTerm)) {
+                        row.classList.remove('hidden');
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                });
+            });
+
+            studentListContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('status-btn')) {
+                    const buttonsContainer = e.target.parentElement;
+                    const studentRow = e.target.closest('.student-row');
+                    const indicator = studentRow.querySelector('.status-indicator');
+                    const statusTextEl = studentRow.querySelector('.student-status-text');
+                    const descriptionWrapper = studentRow.querySelector('.description-wrapper');
+                    const descriptionInput = studentRow.querySelector('.description-input');
+                    
+                    buttonsContainer.querySelectorAll('.status-btn').forEach(btn => {
+                        btn.classList.remove('active', 'bg-green-600', 'bg-slate-600', 'bg-blue-500', 'bg-red-500');
+                        const defaultStyles = statusButtons[btn.dataset.status];
+                        btn.classList.add(defaultStyles.bg, defaultStyles.text);
+                    });
+                    
+                    e.target.classList.add('active');
+                    
+                    const status = e.target.dataset.status;
+                    const styles = statusButtons[status];
+                    const statusColors = { Hadir: 'text-green-600', Sakit: 'text-slate-600', Izin: 'text-blue-600', Alfa: 'text-red-600' };
+
+                    indicator.className = `status-indicator w-3 h-3 rounded-full ${styles.indicator}`;
+                    e.target.classList.remove(styles.bg, styles.text);
+                    e.target.classList.add(styles.activeBg);
+                    
+                    statusTextEl.textContent = status;
+                    statusTextEl.className = `student-status-text text-xs font-semibold mt-1 ${statusColors[status]}`;
+                    
+                    if (status === 'Sakit' || status === 'Izin') {
+                        descriptionWrapper.classList.remove('hidden');
+                    } else {
+                        descriptionWrapper.classList.add('hidden');
+                        descriptionInput.value = '';
+                    }
+
+                    renderClassAttendanceChart();
+                }
+            });
+            
+            attendanceContent.querySelector('#save-attendance-btn').addEventListener('click', (e) => {
+                const button = e.target;
+                const originalText = button.textContent;
+                setButtonLoading(button, true);
+
+                setTimeout(() => {
+                    const date = attendanceContent.querySelector('input[type="date"]').value;
+                    const records = [];
+                    attendanceContent.querySelectorAll('.student-row').forEach(row => {
+                        const studentId = row.querySelector('.status-buttons').dataset.studentId;
+                        const status = row.querySelector('.status-btn.active').dataset.status;
+                        const descriptionInput = row.querySelector('.description-input');
+                        const description = (status === 'Sakit' || status === 'Izin') ? descriptionInput.value.trim() : '';
+                        records.push({ studentId, status, description });
+                    });
+                    
+                    const noteValue = document.getElementById('class-notes-textarea').value.trim();
+
+                    if (!state.attendanceRecords[date]) state.attendanceRecords[date] = {};
+                    state.attendanceRecords[date][classId] = { recapped: true, records, notes: noteValue };
+                    saveStateToFirestore();
+                    
+                    showToast(`Absensi & catatan untuk tanggal ${date} berhasil disimpan!`);
+                    
+                    const statusIndicator = attendanceContent.querySelector('#attendance-status-indicator');
+                    statusIndicator.textContent = 'Sudah Direkap';
+                    statusIndicator.className = 'ml-4 text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-800';
+
+                    setButtonLoading(button, false, originalText);
+                }, 500);
+            });
+
+            renderPage('attendance');
+        }
+        
+        function renderDashboardClasses() {
+            const dashboardClassList = document.getElementById('class-list-dashboard');
+            if (!dashboardClassList) return;
+            
+            if (state.classes.length === 0) {
+                dashboardClassList.innerHTML = `
+                    <div class="text-center p-8 border-2 border-dashed rounded-lg">
+                        <div class="text-6xl mb-4">😢</div>
+                        <h3 class="mt-4 text-lg font-medium text-slate-900">Belum Ada Kelas</h3>
+                        <p class="mt-1 text-sm text-slate-500">Silakan tambahkan kelas terlebih dahulu di menu Pengaturan.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            dashboardClassList.innerHTML = '';
+            state.classes.forEach(cls => {
+                const classCard = document.createElement('div');
+                classCard.className = 'p-4 border rounded-lg bg-white flex flex-col gap-4 card-hover';
+                classCard.dataset.classId = cls.id;
+                
+                const today = new Date().toISOString().slice(0, 10);
+                const todayRecord = state.attendanceRecords[today] ? state.attendanceRecords[today][cls.id] : null;
+                const isRecapped = todayRecord && todayRecord.recapped;
+                const dailyNote = todayRecord ? todayRecord.notes || '' : '';
+                
+                const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
+                if (isRecapped) {
+                    todayRecord.records.forEach(rec => { stats[rec.status]++; });
+                } else {
+                    const studentCount = (state.students[cls.id] || []).length;
+                    stats.Hadir = studentCount;
+                }
+
+                classCard.innerHTML = `
+                    <div class="cursor-pointer" data-action="navigate">
+                        <div class="flex justify-between items-start">
+                            <p class="font-bold text-lg text-slate-800">${cls.name}</p>
+                            <span class="text-xs font-semibold px-2 py-1 rounded-full ${isRecapped ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}">
+                                ${isRecapped ? 'Sudah Direkap' : 'Belum Direkap'}
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-500">Total ${ (state.students[cls.id] || []).length } siswa. Klik untuk absen.</p>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 text-center text-xs">
+                        <div class="bg-green-600 text-white p-2 rounded-md"><p class="font-bold">${stats.Hadir}</p><p>Hadir</p></div>
+                        <div class="bg-slate-600 text-white p-2 rounded-md"><p class="font-bold">${stats.Sakit}</p><p>Sakit</p></div>
+                        <div class="bg-blue-500 text-white p-2 rounded-md"><p class="font-bold">${stats.Izin}</p><p>Izin</p></div>
+                        <div class="bg-red-500 text-white p-2 rounded-md"><p class="font-bold">${stats.Alfa}</p><p>Alfa</p></div>
+                    </div>
+                    ${dailyNote ? `<div class="mt-2 p-2 bg-yellow-50 text-yellow-800 text-xs rounded-lg border border-yellow-200"><strong>Catatan:</strong> ${dailyNote}</div>` : ''}
+                `;
+                classCard.addEventListener('click', (e) => { renderAttendanceLayout(cls.id) });
+                dashboardClassList.appendChild(classCard);
+            });
+        }
+        
+        function renderAllSettings() {
+            renderClassesList();
+            renderClassSelect();
+            renderHolidaysList();
+        }
+
+        function renderClassesList() {
+            const classesListSettingsDiv = document.getElementById('classes-list-settings');
+            if (!classesListSettingsDiv) return;
+            if (state.classes.length === 0) {
+                classesListSettingsDiv.innerHTML = `<p class="text-center text-sm text-slate-500 p-4">Belum ada kelas yang ditambahkan.</p>`;
+                return;
+            }
+            classesListSettingsDiv.innerHTML = '';
+            state.classes.forEach(cls => {
+                const classEl = document.createElement('div');
+                classEl.className = 'p-2 border rounded-lg flex justify-between items-center';
+                classEl.innerHTML = `
+                    <span class="class-name-text">${cls.name}</span>
+                    <div class="flex items-center gap-2">
+                        <button data-id="${cls.id}" class="edit-class-btn text-blue-500 text-xs font-semibold p-1 hover:bg-blue-50 rounded">EDIT</button>
+                        <button data-id="${cls.id}" class="delete-class-btn text-red-500 text-xs font-semibold p-1 hover:bg-red-50 rounded">HAPUS</button>
+                    </div>`;
+                classesListSettingsDiv.appendChild(classEl);
+            });
+        }
+
+        function renderClassSelect() {
+            const classSelectForStudents = document.getElementById('class-select-for-students');
+            if (!classSelectForStudents) return;
+            const currentVal = classSelectForStudents.value;
+            classSelectForStudents.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            state.classes.forEach(cls => {
+                const optionEl = document.createElement('option');
+                optionEl.value = cls.id;
+                optionEl.textContent = cls.name;
+                classSelectForStudents.appendChild(optionEl);
+            });
+            classSelectForStudents.value = currentVal;
+        }
+
+        function renderStudentsForClass(classId) {
+            const studentListDisplay = document.getElementById('student-list-display');
+            if (!studentListDisplay) return;
+            const classStudents = state.students[classId] || [];
+            if (classStudents.length === 0) {
+                studentListDisplay.innerHTML = `
+                    <div class="text-center p-8 border-2 border-dashed rounded-lg">
+                        <div class="text-6xl mb-4">😢</div>
+                        <h3 class="mt-4 text-lg font-medium text-slate-900">Belum Ada Siswa</h3>
+                        <p class="mt-1 text-sm text-slate-500">Silakan tambahkan siswa baru untuk kelas ini.</p>
+                    </div>
+                `;
+                return;
+            }
+            studentListDisplay.innerHTML = '';
+            classStudents.forEach(student => {
+                const studentEl = document.createElement('div');
+                studentEl.className = 'student-list-item p-2 border rounded-lg flex justify-between items-center';
+                studentEl.dataset.studentName = student.name.toLowerCase();
+                const genderInitial = student.gender.charAt(0);
+                studentEl.innerHTML = `
+                    <span><span class="font-semibold text-xs text-slate-500">${student.nis}</span> - ${student.name} (${genderInitial})</span>
+                    <div class="flex items-center gap-2">
+                        <button data-id="${student.id}" class="transfer-student-btn text-green-600 text-xs font-semibold p-1 hover:bg-green-50 rounded">PINDAH</button>
+                        <button data-id="${student.id}" class="edit-student-btn text-blue-500 text-xs font-semibold p-1 hover:bg-blue-50 rounded">EDIT</button>
+                        <button data-id="${student.id}" class="delete-student-btn text-red-500 text-xs font-semibold p-1 hover:bg-red-50 rounded">HAPUS</button>
+                    </div>`;
+                studentListDisplay.appendChild(studentEl);
+            });
+        }
+
+        function renderDonutChart() {
+            const chartCanvas = document.getElementById('attendance-chart');
+            const percentageDiv = document.getElementById('dashboard-chart-percentage');
+            const statsListDiv = document.getElementById('dashboard-stats-list');
+            if (!chartCanvas || !percentageDiv || !statsListDiv) return;
+
+            const today = new Date().toISOString().slice(0, 10);
+            const stats = { 'Hadir': 0, 'Sakit': 0, 'Izin': 0, 'Alfa': 0 };
+            let totalStudents = 0;
+
+            state.classes.forEach(cls => {
+                const studentCount = (state.students[cls.id] || []).length;
+                totalStudents += studentCount;
+                const todayRecord = state.attendanceRecords[today] ? state.attendanceRecords[today][cls.id] : null;
+
+                if (todayRecord && todayRecord.recapped) {
+                    todayRecord.records.forEach(rec => { stats[rec.status]++; });
+                } else {
+                    stats.Hadir += studentCount;
+                }
+            });
+
+            const percentage = totalStudents > 0 ? Math.round((stats.Hadir / totalStudents) * 100) : 0;
+            
+            percentageDiv.textContent = `${percentage}%`;
+            statsListDiv.innerHTML = `
+                <div class="bg-green-50 p-2 rounded-lg"><p class="font-bold text-lg text-green-600">${stats.Hadir}</p><p class="text-xs text-slate-500">Hadir</p></div>
+                <div class="bg-slate-50 p-2 rounded-lg"><p class="font-bold text-lg text-slate-600">${stats.Sakit}</p><p class="text-xs text-slate-500">Sakit</p></div>
+                <div class="bg-blue-50 p-2 rounded-lg"><p class="font-bold text-lg text-blue-600">${stats.Izin}</p><p class="text-xs text-slate-500">Izin</p></div>
+                <div class="bg-red-50 p-2 rounded-lg"><p class="font-bold text-lg text-red-600">${stats.Alfa}</p><p class="text-xs text-slate-500">Alfa</p></div>
+            `;
+
+            if (dashboardChartInstance) dashboardChartInstance.destroy();
+            dashboardChartInstance = new Chart(chartCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hadir', 'Sakit', 'Izin', 'Alfa'],
+                    datasets: [{ data: Object.values(stats), backgroundColor: ['#16a34a', '#475569', '#3b82f6', '#ef4444'], borderColor: '#fff', borderWidth: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+            });
+        }
+        
+        function renderClassAttendanceChart() {
+            const chartCanvas = document.getElementById('class-attendance-chart');
+            if (!chartCanvas) return;
+
+            const statusCounts = { 'Hadir': 0, 'Sakit': 0, 'Izin': 0, 'Alfa': 0 };
+            const studentRows = document.querySelectorAll('#student-attendance-list .student-row');
+            studentRows.forEach(row => {
+                const activeBtn = row.querySelector('.active');
+                if (activeBtn) {
+                    statusCounts[activeBtn.dataset.status]++;
+                }
+            });
+            
+            document.getElementById('hadir-box').querySelector('p').textContent = statusCounts.Hadir;
+            document.getElementById('sakit-box').querySelector('p').textContent = statusCounts.Sakit;
+            document.getElementById('izin-box').querySelector('p').textContent = statusCounts.Izin;
+            document.getElementById('alfa-box').querySelector('p').textContent = statusCounts.Alfa;
+
+            const totalStudents = studentRows.length;
+            const percentage = totalStudents > 0 ? Math.round((statusCounts.Hadir / totalStudents) * 100) : 0;
+            document.getElementById('class-chart-percentage').textContent = `${percentage}%`;
+
+            const chartData = Object.values(statusCounts);
+            
+            if (classChartInstance) {
+                classChartInstance.data.datasets[0].data = chartData;
+                classChartInstance.update();
+            } else {
+                classChartInstance = new Chart(chartCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Hadir', 'Sakit', 'Izin', 'Alfa'],
+                        datasets: [{ data: chartData, backgroundColor: ['#16a34a', '#475569', '#3b82f6', '#ef4444'], borderColor: '#fff', borderWidth: 2 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+                });
+            }
+        }
+        
+        function generateReport(classId, startDateStr, endDateStr) {
+            const resultsArea = document.getElementById('report-results-area');
+            const tableContainer = document.getElementById('report-table-container');
+            const reportInfo = document.getElementById('report-info');
+            const reportStatsContainer = document.getElementById('report-stats-container');
+            const trendChartCanvas = document.getElementById('trend-chart');
+
+            resultsArea.classList.remove('hidden');
+            
+            const startDate = new Date(startDateStr);
+            const endDate = new Date(endDateStr);
+            const classesToProcessIds = classId === 'semua' ? state.classes.map(c => c.id) : [classId];
+            
+            let isDataComplete = true;
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().slice(0, 10);
+                if (state.holidays && state.holidays.includes(dateStr)) continue; 
+
+                for (const cId of classesToProcessIds) {
+                    if (!state.attendanceRecords[dateStr] || !state.attendanceRecords[dateStr][cId] || !state.attendanceRecords[dateStr][cId].recapped) {
+                        isDataComplete = false;
+                        break;
+                    }
+                }
+                if (!isDataComplete) break;
+            }
+
+            const selectedClassName = classId === 'semua' ? 'Semua Kelas' : state.classes.find(c => c.id === classId).name;
+            reportInfo.textContent = `${selectedClassName} | ${new Date(startDateStr).toLocaleDateString('id-ID')} s/d ${new Date(endDateStr).toLocaleDateString('id-ID')}`;
+
+            if (!isDataComplete) {
+                const incompleteMessage = `<div class="text-center p-4 text-sm text-orange-700 bg-orange-100 rounded-lg">Data absensi belum lengkap pada periode ini. Silakan rekap terlebih dahulu.</div>`;
+                reportStatsContainer.innerHTML = incompleteMessage;
+                tableContainer.innerHTML = incompleteMessage;
+                trendChartCanvas.style.display = 'none';
+                return;
+            }
+
+            reportStatsContainer.innerHTML = `
+                <div class="relative h-48 w-48 mx-auto mb-4">
+                     <canvas id="report-chart"></canvas>
+                     <div id="report-chart-percentage" class="absolute inset-0 flex items-center justify-center text-3xl font-bold text-slate-700"></div>
+                </div>
+                <div id="report-stats-list" class="grid grid-cols-2 gap-3 text-center"></div>
+            `;
+            trendChartCanvas.style.display = 'block';
+
+
+            const reportData = {};
+            const descriptions = {};
+            const dailyNotes = {}; // FITUR BARU: Untuk menyimpan catatan harian
+            const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
+            let totalRecords = 0;
+            
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().slice(0, 10);
+                if (state.holidays && state.holidays.includes(dateStr)) continue;
+
+                classesToProcessIds.forEach(cId => {
+                    if (state.attendanceRecords[dateStr] && state.attendanceRecords[dateStr][cId] && state.attendanceRecords[dateStr][cId].records) {
+                        // FITUR BARU: Simpan catatan jika ada
+                        if (state.attendanceRecords[dateStr][cId].notes) {
+                            if (!dailyNotes[dateStr]) dailyNotes[dateStr] = [];
+                            dailyNotes[dateStr].push({
+                                className: state.classes.find(c => c.id === cId).name,
+                                note: state.attendanceRecords[dateStr][cId].notes
+                            });
+                        }
+
+                        state.attendanceRecords[dateStr][cId].records.forEach(rec => {
+                            if (!reportData[rec.studentId]) {
+                                reportData[rec.studentId] = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
+                            }
+                            reportData[rec.studentId][rec.status]++;
+                            stats[rec.status]++;
+                            totalRecords++;
+                            if (rec.description) {
+                                if (!descriptions[rec.studentId]) descriptions[rec.studentId] = [];
+                                descriptions[rec.studentId].push({ date: dateStr, status: rec.status, description: rec.description });
+                            }
+                        });
+                    }
+                });
+            }
+            
+            const reportPercentageDiv = document.getElementById('report-chart-percentage');
+            const reportStatsListDiv = document.getElementById('report-stats-list');
+            const percentage = totalRecords > 0 ? Math.round((stats.Hadir / totalRecords) * 100) : 0;
+            reportPercentageDiv.textContent = `${percentage}%`;
+
+            reportStatsListDiv.innerHTML = `
+                <div class="bg-green-50 p-2 rounded-lg"><p class="font-bold text-lg text-green-600">${stats.Hadir}</p><p class="text-xs text-slate-500">Hadir</p></div>
+                <div class="bg-slate-50 p-2 rounded-lg"><p class="font-bold text-lg text-slate-600">${stats.Sakit}</p><p class="text-xs text-slate-500">Sakit</p></div>
+                <div class="bg-blue-50 p-2 rounded-lg"><p class="font-bold text-lg text-blue-600">${stats.Izin}</p><p class="text-xs text-slate-500">Izin</p></div>
+                <div class="bg-red-50 p-2 rounded-lg"><p class="font-bold text-lg text-red-600">${stats.Alfa}</p><p class="text-xs text-slate-500">Alfa</p></div>
+            `;
+
+            let tableHTML = `
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-700 uppercase bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">NIS</th>
+                            <th scope="col" class="px-6 py-3">Nama Siswa</th>
+                            <th scope="col" class="px-6 py-3">Jenis Kelamin</th>
+                            <th scope="col" class="px-6 py-3 text-center">Hadir</th>
+                            <th scope="col" class="px-6 py-3 text-center">Sakit</th>
+                            <th scope="col" class="px-6 py-3 text-center">Izin</th>
+                            <th scope="col" class="px-6 py-3 text-center">Alfa</th>
+                            <th scope="col" class="px-6 py-3">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            const studentsToDisplay = classId === 'semua' 
+                ? Object.values(state.students).flat() 
+                : (state.students[classId] || []);
+
+            if(studentsToDisplay.length === 0 || totalRecords === 0) {
+                 tableContainer.innerHTML = '<p class="text-slate-500 text-center py-4">Tidak ada data absensi untuk ditampilkan pada periode ini.</p>';
+            } else {
+                 studentsToDisplay.forEach(student => {
+                    const studentData = reportData[student.id] || { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
+                    const studentDescriptions = descriptions[student.id] || [];
+                    const descriptionText = studentDescriptions.map(d => `${d.status} (${new Date(d.date).toLocaleDateString('id-ID')}): ${d.description}`).join('<br>');
+
+                    tableHTML += `
+                        <tr class="bg-white border-b">
+                            <td class="px-6 py-4">${student.nis}</td>
+                            <th scope="row" class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">
+                                <a href="#" class="text-blue-600 hover:underline student-report-link" data-student-id="${student.id}">${student.name}</a>
+                            </th>
+                            <td class="px-6 py-4">${student.gender}</td>
+                            <td class="px-6 py-4 text-center">${studentData.Hadir}</td>
+                            <td class="px-6 py-4 text-center">${studentData.Sakit}</td>
+                            <td class="px-6 py-4 text-center">${studentData.Izin}</td>
+                            <td class="px-6 py-4 text-center">${studentData.Alfa}</td>
+                            <td class="px-6 py-4 text-xs">${descriptionText}</td>
+                        </tr>
+                    `;
+                });
+
+                // FITUR BARU: Tambahkan baris catatan ke tabel
+                for (const date in dailyNotes) {
+                    const notesForDate = dailyNotes[date];
+                    notesForDate.forEach(noteInfo => {
+                        tableHTML += `
+                            <tr class="bg-yellow-50 border-b">
+                                <td colspan="8" class="px-6 py-2 text-xs text-yellow-800">
+                                    <strong>Catatan ${noteInfo.className} (${new Date(date + 'T00:00:00').toLocaleDateString('id-ID')}):</strong> ${noteInfo.note}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                tableHTML += '</tbody></table>';
+                tableContainer.innerHTML = tableHTML;
+            }
+            
+            const chartCanvas = document.getElementById('report-chart');
+            if (reportChartInstance) reportChartInstance.destroy();
+            reportChartInstance = new Chart(chartCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hadir', 'Sakit', 'Izin', 'Alfa'],
+                    datasets: [{ data: Object.values(stats), backgroundColor: ['#16a34a', '#475569', '#3b82f6', '#ef4444'], borderColor: '#fff', borderWidth: 2 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+            });
+            renderTrendChart(classId, startDate, endDate);
+        }
+
+        function renderTrendChart(classId, startDate, endDate) {
+            const trendCanvas = document.getElementById('trend-chart');
+            if (!trendCanvas) return;
+
+            const labels = [];
+            const data = { Hadir: [], Sakit: [], Izin: [], Alfa: [] };
+            
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().slice(0, 10);
+                if (state.holidays && state.holidays.includes(dateStr)) continue;
+
+                labels.push(d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }));
+                
+                const dailyStats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
+                let totalSiswa = 0;
+                
+                const classesToProcess = classId === 'semua' ? state.classes.map(c => c.id) : [classId];
+                
+                classesToProcess.forEach(cId => {
+                    totalSiswa += (state.students[cId] || []).length;
+                    if (state.attendanceRecords[dateStr] && state.attendanceRecords[dateStr][cId]) {
+                        state.attendanceRecords[dateStr][cId].records.forEach(rec => {
+                            dailyStats[rec.status]++;
+                        });
+                    }
+                });
+                
+                for (const status in data) {
+                    const percentage = totalSiswa > 0 ? (dailyStats[status] / totalSiswa) * 100 : 0;
+                    data[status].push(percentage);
+                }
+            }
+
+            if (trendChartInstance) trendChartInstance.destroy();
+            trendChartInstance = new Chart(trendCanvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Hadir', data: data.Hadir, borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)', fill: true, tension: 0.3 },
+                        { label: 'Sakit', data: data.Sakit, borderColor: '#475569', backgroundColor: 'rgba(71, 85, 105, 0.1)', fill: true, tension: 0.3 },
+                        { label: 'Izin', data: data.Izin, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 },
+                        { label: 'Alfa', data: data.Alfa, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true, max: 100, ticks: { callback: value => value + '%' } } }
+                }
+            });
+        }
+
+        async function exportReportToSheet(reportDataArray) {
+            const exportButton = document.getElementById('export-report-btn');
+            if (!exportButton) return;
+
+            const originalButtonText = exportButton.innerHTML;
+            setButtonLoading(exportButton, true);
+
+            const WEB_APP_URL = state.integrations ? state.integrations.googleSheetUrl : '';
+
+            if (!WEB_APP_URL) {
+                showToast("URL Web App Google Sheets belum diatur.", 'error');
+                setButtonLoading(exportButton, false, originalButtonText);
+                return;
+            }
+
+            try {
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reportDataArray)
+                });
+                showToast('Data berhasil diekspor ke Google Sheets!');
+            } catch (error) {
+                console.error('Gagal mengekspor data:', error);
+                showToast('Gagal mengekspor data. Cek konsol.', 'error');
+            } finally {
+                setButtonLoading(exportButton, false, originalButtonText);
+            }
+        }
+
+        function attachSettingsListeners() {
+            const settingsContent = document.getElementById('settings-content');
+            if (!settingsContent || settingsContent.dataset.listenersAttached) return; 
+            settingsContent.dataset.listenersAttached = 'true'; 
+
+            function exportStudentsToCSV(classId) {
+                const students = state.students[classId] || [];
+                if (students.length === 0) {
+                    showToast('Tidak ada siswa untuk diekspor.', 'error');
+                    return;
+                }
+                const className = state.classes.find(c => c.id === classId).name;
+                let csvContent = "data:text/csv;charset=utf-8,NIS,Nama,Jenis Kelamin\n";
+                students.forEach(student => {
+                    csvContent += `${student.nis},${student.name},${student.gender}\n`;
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `data-siswa-${className}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            function importStudentsFromCSV(file, classId) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const csv = event.target.result;
+                    const lines = csv.split('\n').filter(line => line.trim() !== '');
+                    if (lines.length > 0 && lines[0].toLowerCase().includes('nis')) {
+                        lines.shift();
+                    }
+                    
+                    const newStudents = lines.map(line => {
+                        const [nis, name, gender] = line.split(',').map(item => item.trim());
+                        if (nis && name && gender) {
+                            return { id: 's' + Date.now() + Math.random(), nis, name, gender };
+                        }
+                        return null;
+                    }).filter(Boolean);
+
+                    if (!state.students[classId]) {
+                        state.students[classId] = [];
+                    }
+                    state.students[classId].push(...newStudents);
+                    saveStateToFirestore();
+                    renderStudentsForClass(classId);
+                    showToast(`${newStudents.length} siswa berhasil diimpor.`);
+                };
+                reader.readAsText(file);
+            }
+
+            settingsContent.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const targetId = e.target.id;
+
+                if (targetId === 'school-info-form') {
+                    state.schoolInfo.name = document.getElementById('school-name-input').value;
+                    state.schoolInfo.address = document.getElementById('school-address-input').value;
+                    state.schoolInfo.logo = document.getElementById('school-logo-input').value;
+                    saveStateToFirestore();
+                    showToast('Informasi sekolah berhasil disimpan!');
+                } else if (targetId === 'add-class-form') {
+                    const newClassNameInput = document.getElementById('new-class-name');
+                    const className = newClassNameInput.value.trim();
+                    if (className) {
+                        const newId = 'cls' + Date.now();
+                        state.classes.push({ id: newId, name: className });
+                        saveStateToFirestore();
+                        newClassNameInput.value = '';
+                        renderAllSettings();
+                        showToast('Kelas baru berhasil ditambahkan!');
+                    }
+                } else if (targetId === 'add-student-form') {
+                    const selectedClassId = document.getElementById('class-select-for-students').value;
+                    const nis = document.getElementById('student-nis').value.trim();
+                    const name = document.getElementById('student-name').value.trim();
+                    const gender = document.getElementById('student-gender').value;
+
+                    if (!state.students[selectedClassId]) state.students[selectedClassId] = [];
+                    if (nis && name && gender) {
+                        const newStudentId = 's' + Date.now();
+                        state.students[selectedClassId].push({ id: newStudentId, nis, name, gender });
+                        saveStateToFirestore();
+                        renderStudentsForClass(selectedClassId);
+                        e.target.reset();
+                        showToast('Siswa baru berhasil ditambahkan!');
+                    }
+                } else if (targetId === 'add-holiday-form') {
+                    const date = holidayDatePicker.getDate();
+                    if (date) {
+                        const dateString = date.format('YYYY-MM-DD');
+                        if (!state.holidays.includes(dateString)) {
+                            state.holidays.push(dateString);
+                            state.holidays.sort();
+                            saveStateToFirestore();
+                            renderHolidaysList();
+                            showToast('Tanggal libur berhasil ditambahkan.');
+                        } else {
+                            showToast('Tanggal ini sudah ada di daftar.', 'error');
+                        }
+                    }
+                }
+            });
+            
+            settingsContent.addEventListener('click', (e) => {
+                const target = e.target.closest('button');
+                if (!target) return;
+
+                const selectedClassId = document.getElementById('class-select-for-students').value;
+
+                if (target.classList.contains('delete-class-btn')) {
+                    const classId = target.dataset.id;
+                    const className = state.classes.find(c => c.id === classId).name;
+                    showConfirmationModal('Hapus Kelas?', `Anda akan menghapus "${className}" dan semua data siswanya.`, () => {
+                        state.classes = state.classes.filter(cls => cls.id !== classId);
+                        delete state.students[classId];
+                        saveStateToFirestore();
+                        renderAllSettings();
+                        showToast(`Kelas "${className}" berhasil dihapus.`);
+                    });
+                } else if (target.classList.contains('edit-class-btn')) {
+                    const classId = target.dataset.id;
+                    const classToEdit = state.classes.find(c => c.id === classId);
+                    if (classToEdit) {
+                        document.getElementById('edit-class-id').value = classToEdit.id;
+                        document.getElementById('edit-class-name').value = classToEdit.name;
+                        showModal('edit-class-modal');
+                    }
+                } else if (target.classList.contains('delete-student-btn')) {
+                    const studentId = target.dataset.id;
+                    const student = state.students[selectedClassId]?.find(s => s.id === studentId);
+                    if (student) {
+                        showConfirmationModal('Hapus Siswa?', `Anda yakin ingin menghapus siswa bernama "${student.name}"?`, () => {
+                            state.students[selectedClassId] = state.students[selectedClassId].filter(s => s.id !== studentId);
+                            saveStateToFirestore();
+                            renderStudentsForClass(selectedClassId);
+                            showToast(`Siswa "${student.name}" berhasil dihapus.`);
+                        });
+                    }
+                } else if (target.classList.contains('edit-student-btn')) {
+                    const studentId = target.dataset.id;
+                    const student = state.students[selectedClassId]?.find(s => s.id === studentId);
+                    if (student) {
+                        document.getElementById('edit-student-id').value = student.id;
+                        document.getElementById('edit-student-class-id').value = selectedClassId;
+                        document.getElementById('edit-student-nis').value = student.nis;
+                        document.getElementById('edit-student-name').value = student.name;
+                        document.getElementById('edit-student-gender').value = student.gender;
+                        showModal('edit-student-modal');
+                    }
+                } else if (target.classList.contains('transfer-student-btn')) {
+                    const studentId = target.dataset.id;
+                    const student = state.students[selectedClassId]?.find(s => s.id === studentId);
+                    if (student) {
+                        document.getElementById('transfer-student-id').value = student.id;
+                        document.getElementById('transfer-student-source-class-id').value = selectedClassId;
+                        document.getElementById('transfer-student-name').textContent = student.name;
+                        
+                        const destinationSelect = document.getElementById('transfer-destination-class');
+                        destinationSelect.innerHTML = '';
+                        state.classes
+                            .filter(c => c.id !== selectedClassId)
+                            .forEach(c => {
+                                destinationSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                            });
+                        
+                        showModal('transfer-student-modal');
+                    }
+                } else if (target.id === 'import-csv-btn') {
+                    document.getElementById('csv-file-input').click();
+                } else if (target.id === 'export-csv-btn') {
+                    exportStudentsToCSV(selectedClassId);
+                } else if (target.id === 'export-data-btn') {
+                    exportAllData();
+                } else if (target.id === 'import-data-btn') {
+                    document.getElementById('import-data-input').click();
+                } else if (target.classList.contains('delete-holiday-btn')) {
+                    const dateToDelete = target.dataset.date;
+                    state.holidays = state.holidays.filter(h => h !== dateToDelete);
+                    saveStateToFirestore();
+                    renderHolidaysList();
+                    showToast('Tanggal libur dihapus.');
+                } else if (target.id === 'reset-data-btn') { 
+                    showConfirmationModal(
+                        'Reset Semua Data?',
+                        'Tindakan ini akan menghapus SEMUA kelas, siswa, dan rekap absensi secara permanen. Lanjutkan?',
+                        () => {
+                            showModal('reset-data-modal');
+                        }
+                    );
+                }
+            });
+            
+            settingsContent.addEventListener('change', (e) => {
+                if(e.target.id === 'class-select-for-students') {
+                    const selectedClassId = e.target.value;
+                    const studentsManagementArea = document.getElementById('students-management-area');
+                    if (selectedClassId) {
+                        studentsManagementArea.classList.remove('hidden');
+                        renderStudentsForClass(selectedClassId);
+                    } else {
+                        studentsManagementArea.classList.add('hidden');
+                    }
+                } else if (e.target.id === 'csv-file-input') {
+                    const file = e.target.files[0];
+                    const selectedClassId = document.getElementById('class-select-for-students').value;
+                    if (file && selectedClassId) {
+                        importStudentsFromCSV(file, selectedClassId);
+                    }
+                } else if (e.target.id === 'import-data-input') {
+                    const file = e.target.files[0];
+                    if (file) {
+                        importAllData(file);
+                    }
+                }
+            });
+        }
+        
+        function attachModalListeners() {
+            document.getElementById('edit-student-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const studentId = document.getElementById('edit-student-id').value;
+                const classId = document.getElementById('edit-student-class-id').value;
+                const studentIndex = state.students[classId].findIndex(s => s.id === studentId);
+                if (studentIndex > -1) {
+                    state.students[classId][studentIndex].nis = document.getElementById('edit-student-nis').value;
+                    state.students[classId][studentIndex].name = document.getElementById('edit-student-name').value;
+                    state.students[classId][studentIndex].gender = document.getElementById('edit-student-gender').value;
+                    saveStateToFirestore();
+                    hideModal('edit-student-modal');
+                    renderStudentsForClass(classId);
+                    showToast('Data siswa berhasil diperbarui!');
+                }
+            });
+
+            document.getElementById('transfer-student-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const studentId = document.getElementById('transfer-student-id').value;
+                const sourceClassId = document.getElementById('transfer-student-source-class-id').value;
+                const destinationClassId = document.getElementById('transfer-destination-class').value;
+                
+                if (!destinationClassId) {
+                    showToast("Pilih kelas tujuan terlebih dahulu.", 'error');
+                    return;
+                }
+
+                const studentIndex = state.students[sourceClassId].findIndex(s => s.id === studentId);
+                if (studentIndex > -1) {
+                    const [studentToMove] = state.students[sourceClassId].splice(studentIndex, 1);
+                    if (!state.students[destinationClassId]) {
+                        state.students[destinationClassId] = [];
+                    }
+                    state.students[destinationClassId].push(studentToMove);
+                    
+                    for (const date in state.attendanceRecords) {
+                        if (state.attendanceRecords[date][sourceClassId]) {
+                            const recordIndex = state.attendanceRecords[date][sourceClassId].records.findIndex(rec => rec.studentId === studentId);
+                            if (recordIndex > -1) {
+                                const [recordToMove] = state.attendanceRecords[date][sourceClassId].records.splice(recordIndex, 1);
+                                if (!state.attendanceRecords[date][destinationClassId]) {
+                                    state.attendanceRecords[date][destinationClassId] = { recapped: false, records: [], notes: '' };
+                                }
+                                state.attendanceRecords[date][destinationClassId].records.push(recordToMove);
+                            }
+                        }
+                    }
+
+                    saveStateToFirestore();
+                    hideModal('transfer-student-modal');
+                    renderStudentsForClass(sourceClassId);
+                    showToast(`Siswa berhasil dipindahkan beserta riwayat absensinya.`);
+                }
+            });
+
+            document.getElementById('edit-class-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const classId = document.getElementById('edit-class-id').value;
+                const newName = document.getElementById('edit-class-name').value.trim();
+                
+                if (newName) {
+                    const classIndex = state.classes.findIndex(c => c.id === classId);
+                    if (classIndex > -1) {
+                        state.classes[classIndex].name = newName;
+                        saveStateToFirestore();
+                        hideModal('edit-class-modal');
+                        renderAllSettings();
+                        showToast('Nama kelas berhasil diperbarui!');
+                    }
+                }
+            });
+            
+            document.getElementById('reset-data-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const passwordInput = document.getElementById('reset-password-confirm');
+                const password = passwordInput.value;
+                const button = e.target.querySelector('button[type="submit"]');
+                const originalText = button.innerHTML;
+                
+                if (!password) {
+                    showToast('Password tidak boleh kosong.', 'error');
+                    return;
+                }
+                
+                setButtonLoading(button, true);
+
+                try {
+                    const user = auth.currentUser;
+                    const credential = EmailAuthProvider.credential(user.email, password);
+                    
+                    await reauthenticateWithCredential(user, credential);
+                    
+                    const defaultState = {
+                        schoolInfo: { name: 'Sekolah Baru', address: 'Alamat Sekolah', logo: '' },
+                        classes: [], students: {}, attendanceRecords: {}, holidays: [],
+                        integrations: { googleSheetUrl: state.integrations.googleSheetUrl || '' }
+                    };
+                    state = defaultState;
+                    await setDoc(doc(db, "users", user.uid), state);
+
+                    showToast('Data berhasil direset! Aplikasi akan dimuat ulang.');
+                    setTimeout(() => window.location.reload(), 2000);
+
+                } catch (error) {
+                    console.error("Gagal mereset data:", error);
+                    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                        showToast('Password yang Anda masukkan salah.', 'error');
+                    } else {
+                        showToast('Terjadi kesalahan saat re-autentikasi.', 'error');
+                    }
+                } finally {
+                    passwordInput.value = '';
+                    setButtonLoading(button, false, originalText);
+                    hideModal('reset-data-modal');
+                }
+            });
+            
+            document.getElementById('reset-data-cancel-btn').addEventListener('click', () => {
+                hideModal('reset-data-modal');
+                document.getElementById('reset-password-confirm').value = '';
+            });
+
+
+            document.getElementById('edit-student-cancel-btn').addEventListener('click', () => hideModal('edit-student-modal'));
+            document.getElementById('transfer-student-cancel-btn').addEventListener('click', () => hideModal('transfer-student-modal'));
+            document.getElementById('edit-class-cancel-btn').addEventListener('click', () => hideModal('edit-class-modal'));
+            document.getElementById('student-report-close-btn').addEventListener('click', () => hideModal('student-report-modal'));
+        }
+
+        function attachIntegrationListeners() {
+            const integrationForm = document.getElementById('integration-form');
+            if(integrationForm) {
+                integrationForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const urlInput = document.getElementById('google-sheet-url-input');
+                    
+                    if (!state.integrations) {
+                        state.integrations = {};
+                    }
+                    state.integrations.googleSheetUrl = urlInput.value.trim();
+                    saveStateToFirestore();
+                    showToast('URL berhasil disimpan!');
+                });
+            }
+        }
+
+        function attachNavigationListeners() {
+             document.querySelectorAll('.nav-link').forEach(link => {
+                 link.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     const targetLink = e.target.closest('a');
+                     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                     targetLink.classList.add('active');
+                     
+                     const pageName = targetLink.dataset.page;
+                     renderPage(pageName);
+                     if (pageName === 'dashboard') renderDashboard();
+                     else if (pageName === 'settings') renderSettings();
+                     else if (pageName === 'reports') renderReports();
+                     else if (pageName === 'integration') renderIntegration();
+
+                     if (window.innerWidth < 768) {
+                         toggleSidebar();
+                     }
+                 });
+             });
+             
+            document.getElementById('logout-button').addEventListener('click', async () => {
+                try {
+                    await signOut(auth);
+                } catch (error) {
+                    console.error("Gagal logout:", error);
+                    showToast("Gagal untuk logout.", 'error');
+                }
+            });
+        }
+
+        function attachMobileSidebarListeners() {
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('-translate-x-full');
+                sidebarOverlay.classList.toggle('hidden');
+            }
+
+            sidebarToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleSidebar();
+            });
+
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+        }
+
+        // --- APPLICATION INITIALIZATION FLOW ---
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("Pengguna terdeteksi:", user.uid);
+                authScreen.classList.add('hidden');
+                loadingScreen.classList.remove('hidden');
+                loadingScreen.classList.add('flex');
+                initializeAppForUser(user.uid, user.email);
+            } else {
+                console.log("Tidak ada pengguna.");
+                currentUserId = null;
+                loadingScreen.classList.add('hidden');
+                mainAppContent.classList.add('hidden');
+                authScreen.classList.remove('hidden');
+                authScreen.classList.add('flex');
+            }
+        });
+
+        async function initializeAppForUser(userId, userEmail) {
+            try {
+                currentUserId = userId;
+                const docRef = doc(db, "users", userId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const defaultState = {
+                        schoolInfo: { name: 'Sistem Absensi', address: 'Atur nama & alamat di menu Pengaturan.', logo: '' },
+                        classes: [], students: {}, attendanceRecords: {}, holidays: [],
+                        integrations: { googleSheetUrl: '' }
+                    };
+                    const fetchedData = docSnap.data();
+                     state = { 
+                         ...defaultState, 
+                         ...fetchedData,
+                         schoolInfo: { ...defaultState.schoolInfo, ...fetchedData.schoolInfo },
+                         integrations: { ...defaultState.integrations, ...fetchedData.integrations }
+                    };
+                } else {
+                    throw new Error("Data pengguna tidak ditemukan.");
+                }
+                
+                document.getElementById('user-name-display-sidebar').textContent = userEmail;
+                loadingScreen.classList.add('hidden');
+                mainAppContent.classList.remove('hidden');
+
+                renderDashboard();
+                attachNavigationListeners();
+                attachMobileSidebarListeners();
+                attachModalListeners();
+
+            } catch (error) {
+                console.error("Gagal memuat data pengguna:", error);
+                loadingScreen.classList.add('hidden');
+                document.getElementById('error-message').textContent = `Gagal memuat data: ${error.message}.`;
+                errorScreen.classList.remove('hidden');
+                errorScreen.classList.add('flex');
+            }
+        }
+
+    </script>
+</body>
+</html>
